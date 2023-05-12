@@ -34,7 +34,6 @@ class File(object):
             self.obj = open(self.filename, 'r+')
         except:
             self.obj = []
-            pass
 
     def patch(self):
         for key, value in self.__class__.__dict__.items():
@@ -81,9 +80,7 @@ def patch_includes(root):
     files = []
 
     for r, d, f in os.walk(root):
-        for file in f:
-            files.append(os.path.join(r, file))
-
+        files.extend(os.path.join(r, file) for file in f)
     for f in files:
         fObj = File(f.replace('\\', '/'))
         fObj.patch()

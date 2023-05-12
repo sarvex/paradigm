@@ -8,11 +8,10 @@ import xml.etree.ElementTree as ET
 def parse(input="gl.xml", supported="gles2", output="gl.h"):
     root = ET.parse(input).getroot()
 
-    enums = {}
-
-    for enum in root.findall('enums/enum'):
-        enums[enum.get('name')] = enum.get('value')
-
+    enums = {
+        enum.get('name'): enum.get('value')
+        for enum in root.findall('enums/enum')
+    }
     enum_to_ext_mapping = {}
     for extension in root.findall('extensions/extension'):
         if supported in extension.get('supported'):
@@ -21,33 +20,30 @@ def parse(input="gl.xml", supported="gles2", output="gl.h"):
                     enum_to_ext_mapping[enum.get('name')].append(extension.get('name'))
                 else:
                     enum_to_ext_mapping[enum.get('name')] = [extension.get('name')]
-            
+
 
     extension_to_enum_mapping = {}
-    content = "#if defined(GL_ENABLE_ALL_DEFINES) && !defined(_INCL_GL_ENABLE_ALL_DEFINES)\n"
-    content += "#define _INCL_GL_ENABLE_ALL_DEFINES\n"
-    for enum in enum_to_ext_mapping.keys():
+    content = (
+        "#if defined(GL_ENABLE_ALL_DEFINES) && !defined(_INCL_GL_ENABLE_ALL_DEFINES)\n"
+        + "#define _INCL_GL_ENABLE_ALL_DEFINES\n"
+    )
+    for enum in enum_to_ext_mapping:
         extension = tuple(enum_to_ext_mapping[enum])
         if extension in extension_to_enum_mapping:
             extension_to_enum_mapping[extension].append(enum)
         else:
             extension_to_enum_mapping[extension] = [enum]
 
-    for extension_tuple in extension_to_enum_mapping.keys():
+    for extension_tuple, value in extension_to_enum_mapping.items():
         content += "#if "
         for i, extension in enumerate(extension_tuple):
-            content += "!defined(" + extension + ")"        
-            if i == len(extension_tuple) - 1:
-                content += "\n"
-            else:
-                content += " && "
-            
-        for enum in extension_to_enum_mapping[extension_tuple]:
-            content += "#define " + enum + " " + enums[enum] + "\n"
+            content += f"!defined({extension})"
+            content += "\n" if i == len(extension_tuple) - 1 else " && "
+        for enum in value:
+            content += f"#define {enum} {enums[enum]}" + "\n"
 
         content += "#endif // " + ' && '.join(extension_tuple) + "\n\n"
     content += "#endif\n"
-    file = open(output, "w+")
-    file.write(content)
-    file.flush()
-    file.close()
+    with open(output, "w+") as file:
+        file.write(content)
+        file.flush()

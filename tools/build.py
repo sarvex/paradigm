@@ -42,7 +42,7 @@ class bcolors:
         
 class Paradigm(object):
     has_generated = True
-    def initialize(self, directory = os.path.dirname(os.path.realpath(__file__))+"/../"):
+    def initialize(self, directory=f"{os.path.dirname(os.path.realpath(__file__))}/../"):
         build_arguments = ArgumentParser(description='Generate build files for the current project.')
         build_arguments.add_argument("-g", "--generator", const="auto", default="auto", nargs='?',
                             help="Set the generator for the project", dest="generator")
@@ -82,21 +82,19 @@ class Paradigm(object):
                 args.generator = "Ninja"
             else:
                 args.generator = "Unix Makefiles"
-                
+
         if generator == "msvc":
-            if args.architecture == 'x64':
-                args.generator = "Visual Studio 17 2022"
-            elif args.architecture == 'arm':
+            if args.architecture in ['x64', 'arm']:
                 args.generator = "Visual Studio 17 2022"
         elif generator == 'make':
             args.generator = "Unix Makefiles"
-                
+
 
         args.project_dir = os.path.join(args.root_dir, args.project_dir, args.generator, args.architecture)
         args.build_dir = os.path.join(args.root_dir, args.build_dir, args.generator, args.architecture)
 
         if generator.startswith("Visual Studio"):
-            args.generator = args.generator + ' -A ' + args.architecture
+            args.generator = f'{args.generator} -A {args.architecture}'
 
         if not os.path.exists(args.project_dir):
             os.makedirs(args.project_dir)
@@ -104,11 +102,11 @@ class Paradigm(object):
 
         if not os.path.exists(args.build_dir):
             os.makedirs(args.build_dir)
-            
-        if args.clean == 'all' or args.clean == 'build':
+
+        if args.clean in ['all', 'build']:
             self.clean(args.build_dir)
-                                
-        if args.clean == 'all' or args.clean == 'project':
+
+        if args.clean in ['all', 'project']:
             self.clean(args.project_dir)
 
         if args.verbose:
@@ -140,11 +138,8 @@ class Paradigm(object):
     def generate_command(self, args):
         working_dir = os.getcwd()
         os.chdir(args.project_dir)
-        
-        cmakeExe="cmake"
-        if(sys.platform.startswith('win')):
-            cmakeExe="cmake.exe"
-        
+
+        cmakeExe = "cmake.exe" if (sys.platform.startswith('win')) else "cmake"
         try:
             subprocess.check_call([cmakeExe, "--version"])
         except:
@@ -152,51 +147,54 @@ class Paradigm(object):
             raise
 
         cmakeCmd = []
-        
+
         if not os.path.exists(os.path.join(args.project_dir, "CMakeFiles")) or not self.has_generated:
             args.cmake_update = False
-            cmakeCmd = [cmakeExe, "-G", args.generator, \
-                 "-DPE_BUILD_DIR="+args.build_dir, \
-                 "-DPE_VULKAN_VERSION="+args.vk_version, \
-                 "-DVK_STATIC="+("ON" if args.vk_static else "OFF"), \
-                 "-DCMAKE_BUILD_TYPE="+args.build_config, \
-                 "-DPE_VULKAN="+("ON" if "vulkan" in args.graphics else "OFF"), \
-                 "-DPE_GLES="+("ON" if "gles" in args.graphics else "OFF"), \
-                 "-DPE_MOLTEN="+("ON" if "molten" in args.graphics else "OFF")]
+            cmakeCmd = [
+                cmakeExe,
+                "-G",
+                args.generator,
+                f"-DPE_BUILD_DIR={args.build_dir}",
+                f"-DPE_VULKAN_VERSION={args.vk_version}",
+                "-DVK_STATIC=" + ("ON" if args.vk_static else "OFF"),
+                f"-DCMAKE_BUILD_TYPE={args.build_config}",
+                "-DPE_VULKAN=" + ("ON" if "vulkan" in args.graphics else "OFF"),
+                "-DPE_GLES=" + ("ON" if "gles" in args.graphics else "OFF"),
+                "-DPE_MOLTEN=" + ("ON" if "molten" in args.graphics else "OFF"),
+            ]
             if args.cmake_params:
-                cmakeCmd = cmakeCmd + args.cmake_params
-            cmakeCmd = cmakeCmd + [ "-H"+ args.root_dir, "-B"+args.project_dir]
+                cmakeCmd += args.cmake_params
+            cmakeCmd = cmakeCmd + [f"-H{args.root_dir}", f"-B{args.project_dir}"]
         elif args.cmake_update:
-            cmakeCmd = [cmakeExe, r".", \
-                 "-DPE_VULKAN_VERSION="+args.vk_version, \
-                 "-DCMAKE_BUILD_TYPE="+args.build_config, \
-                 "-DPE_VULKAN="+("ON" if "vulkan" in args.graphics else "OFF"), \
-                 "-DPE_GLES="+("ON" if "gles" in args.graphics else "OFF"), \
-                 "-DPE_MOLTEN="+("ON" if "molten" in args.graphics else "OFF")]
+            cmakeCmd = [
+                cmakeExe,
+                r".",
+                f"-DPE_VULKAN_VERSION={args.vk_version}",
+                f"-DCMAKE_BUILD_TYPE={args.build_config}",
+                "-DPE_VULKAN=" + ("ON" if "vulkan" in args.graphics else "OFF"),
+                "-DPE_GLES=" + ("ON" if "gles" in args.graphics else "OFF"),
+                "-DPE_MOLTEN=" + ("ON" if "molten" in args.graphics else "OFF"),
+            ]
             if args.cmake_params:
-                cmakeCmd = cmakeCmd + args.cmake_params
-                
+                cmakeCmd += args.cmake_params
+
         os.chdir(working_dir)
         return cmakeCmd
          
     def build_command(self, args):
-        cmakeExe="cmake"
-        if(sys.platform.startswith('win')):
-            cmakeExe="cmake.exe"
-
+        cmakeExe = "cmake.exe" if (sys.platform.startswith('win')) else "cmake"
         try:
             subprocess.check_call([cmakeExe, "--version"])
         except:
             print("Missing dependency, please install cmake and make it visible in the $PATH variable of your terminal")
             raise
-            
-        cmakeCmd = [cmakeExe, "--build", r".", "--config", args.build_config]
-        return cmakeCmd
+
+        return [cmakeExe, "--build", r".", "--config", args.build_config]
         
     def build(self, nopatch, directory, generate_cmd="", build_cmd=""):
         working_dir = os.getcwd()
         os.chdir(directory)
-        
+
         retCode = 0
         if generate_cmd:
             print("setting up project files...")
@@ -204,17 +202,17 @@ class Paradigm(object):
             if not nopatch:
                 print("patching project files...")
                 patch.patch(directory)
-                
+
         if build_cmd and retCode == 0:
             print("building now...")
             retCode = subprocess.check_call(build_cmd, shell=False)
-            
+
         os.chdir(working_dir)
 
         if retCode == 0:
-            print(bcolors.GREEN + "completed building the project" + bcolors.NC)
+            print(f"{bcolors.GREEN}completed building the project{bcolors.NC}")
         else:
-            print(bcolors.FAIL + "failed building the project" + bcolors.NC)
+            print(f"{bcolors.FAIL}failed building the project{bcolors.NC}")
     
     def __call__(self, args=[]):
         if not args:
@@ -222,10 +220,7 @@ class Paradigm(object):
         else:
             args, remaining_argv = self.initialize().parse_known_args(args)
             args = self.prepare(args)
-            
+
         generate_cmd = self.generate_command(args)
-        build_cmd=""
-        if(args.build):
-            build_cmd = self.build_command(args)
-        
+        build_cmd = self.build_command(args) if args.build else ""
         self.build(args.nopatch, args.project_dir, generate_cmd, build_cmd)

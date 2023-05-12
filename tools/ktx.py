@@ -7,15 +7,24 @@ def parse_format(file):
     formats = []
 
     for format in parsed_json:
-        data = {"type":"", "glDesktopOnly":True, "typeSize":0, "vkFormat":"", "glInternalFormat":"", "glFormat":"", "glType":"", "dxgiFormat":"", "mtlFormat":"", "gfxFormat":""}
         if format["glDesktopOnly"]:
             continue
 
         if not format["glType"] and not format["glInternalFormat"] and not format["glFormat"]:
             continue
-        data["type"] = format["type"]
-        data["gles"] = not format["glDesktopOnly"]
-        data["typeSize"] = format["typeSize"]
+        data = {
+            "glDesktopOnly": True,
+            "vkFormat": "",
+            "glInternalFormat": "",
+            "glFormat": "",
+            "glType": "",
+            "dxgiFormat": "",
+            "mtlFormat": "",
+            "gfxFormat": "",
+            "type": format["type"],
+            "gles": not format["glDesktopOnly"],
+            "typeSize": format["typeSize"],
+        }
         vkFormat = ""
 
         is_astc = False
@@ -35,16 +44,16 @@ def parse_format(file):
             else:
                 vkFormat += title
 
-        data["vkFormat"] = "vk::Format::e" + vkFormat
+        data["vkFormat"] = f"vk::Format::e{vkFormat}"
         data["glInternalFormat"] = format["glInternalFormat"]
         data["glFormat"] = format["glFormat"]
         data["glType"] = format["glType"]
         data["dxgiFormat"] = format["dxgiFormat"]
         data["mtlFormat"] = format["mtlFormat"]
         data["gfxFormat"] = format["vkFormat"][10:].lower()
-        
+
         formats.append(data)
-    
+
     return formats
 
 def conversion_gles(formats):
@@ -107,7 +116,7 @@ if __name__ == "__main__":
     url = "https://raw.githubusercontent.com/KhronosGroup/KTX-Specification/ee688e65bb5cd6d30152cb3086df51664fdbc572/formats.json"
     if len(sys.argv) >= 2:
         url = sys.argv[1]
-    
+
     formats = []
     with urllib.request.urlopen(url) as data:
         formats = parse_format(data.read().decode())
@@ -115,7 +124,6 @@ if __name__ == "__main__":
     content += conversion_gles(formats)
     content += conversion_vk(formats)
     content += size_of_format(formats)
-    file2 = open("output", 'w+')
-    file2.write(content)
-    file2.flush()
-    file2.close()
+    with open("output", 'w+') as file2:
+        file2.write(content)
+        file2.flush()

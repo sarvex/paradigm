@@ -9,17 +9,21 @@ def run_command(command=[], directory=None, print_stdout=False, catch_stdout=Fal
     output = []
     if catch_stdout:
         if print_stdout:
-            for line in io.TextIOWrapper(process.stdout, newline=''):
-                if not line.endswith('\r'):
-                    output.append(line[:len(line)-1] if line[-1] == os.linesep else line)
+            output.extend(
+                line[:-1] if line[-1] == os.linesep else line
+                for line in io.TextIOWrapper(process.stdout, newline='')
+                if not line.endswith('\r')
+            )
         else:
             for line in io.TextIOWrapper(process.stdout, newline=os.linesep):
                 line = line.rsplit('\r', maxsplit=1)[-1]
-                output.append(line[:len(line)-1])
+                output.append(line[:-1])
         process.stdout.close()
     process.wait()
     if process.returncode != 0:
-        raise Exception(f"Raised exitcode '{process.returncode}' while trying to run the command '{' '.join(comm for comm in command)}'")
+        raise Exception(
+            f"Raised exitcode '{process.returncode}' while trying to run the command '{' '.join(command)}'"
+        )
     return output
     
 def format(folders, cformat):

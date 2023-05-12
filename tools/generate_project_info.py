@@ -13,17 +13,17 @@ def all_authors():
     author_alias = {'JessyDL':'Jessy De Lannoit'}
     authors = {}
     for author in possible_authors:
-        if author and not any(s in author for s in author_exemptions):
+        if author and all(s not in author for s in author_exemptions):
             author = author.strip()
             number, name = author.split(None,1)
-            if name in author_alias.keys():
+            if name in author_alias:
                 name = author_alias[name]
-                
+
             if name not in authors:
                 authors[name] = number
             else:
                 authors[name] += number
-            
+
     list(sorted(authors.items()))
     return authors.keys()
     

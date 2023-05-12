@@ -13,23 +13,27 @@ def run_command(command=[], directory=None, print_stdout=False, catch_stdout=Fal
     output = []
     if catch_stdout:
         if print_stdout:
-            for line in io.TextIOWrapper(process.stdout, newline=''):
-                if not line.endswith('\r'):
-                    output.append(line[:len(line)-1] if line[-1] == os.linesep else line)
+            output.extend(
+                line[:-1] if line[-1] == os.linesep else line
+                for line in io.TextIOWrapper(process.stdout, newline='')
+                if not line.endswith('\r')
+            )
         else:
             for line in io.TextIOWrapper(process.stdout, newline=os.linesep):
                 line = line.rsplit('\r', maxsplit=1)[-1]
-                output.append(line[:len(line)-1])
+                output.append(line[:-1])
         process.stdout.close()
     process.wait()
     if process.returncode != 0:
-        raise Exception(f"Raised exitcode '{process.returncode}' while trying to run the command '{' '.join(comm for comm in command)}'")
+        raise Exception(
+            f"Raised exitcode '{process.returncode}' while trying to run the command '{' '.join(command)}'"
+        )
     return output
 
 class Android:
     def __init__(self, directory, sdk=None, gradle=None, bundletool=None, skip_setup=False) -> None:
         self._sdk = sdk
-        if self._sdk != None and self._sdk != "":
+        if self._sdk not in [None, ""]:
             os.environ["ANDROID_SDK_ROOT"] = self._sdk
         elif "ANDROID_SDK_ROOT" in os.environ:
             self._sdk = os.environ["ANDROID_SDK_ROOT"]
@@ -43,21 +47,22 @@ class Android:
             for dependency, channel in Android.dependencies():
                 Android._install_required(packages, dependency, channel, sdk=self._sdk)
 
-    def _install_required(packages, package, channel=0, sdk=None):
-        if package in packages["installed"]:
+    def _install_required(self, package, channel=0, sdk=None):
+        if package in self["installed"]:
             print(f"sdk package '{package}' was found")
             return
         print(f"Missing '{package}', trying to install now..")
-        if package in packages["available"]:
-            print(f"installing '{package}'")
-            application = os.path.join(sdk, 'cmdline-tools', 'latest', 'bin', 'sdkmanager') if sdk != None else 'sdkmanager'
-            run_command(command=[application, package, f"--channel={str(channel)}"], print_stdout=True, catch_stdout=False)
-        else:
+        if package not in self["available"]:
             raise Exception(f"Could not find the required sdk package '{package}'")
-    def _parse_installed_packages(channel=0, sdk=None):
+        print(f"installing '{package}'")
         application = os.path.join(sdk, 'cmdline-tools', 'latest', 'bin', 'sdkmanager') if sdk != None else 'sdkmanager'
-        sdkman_output = run_command([application, "--list", f"--channel={str(channel)}"], catch_stdout=True)
-        
+        run_command(command=[application, package, f"--channel={str(channel)}"], print_stdout=True, catch_stdout=False)
+    def _parse_installed_packages(self, sdk=None):
+        application = os.path.join(sdk, 'cmdline-tools', 'latest', 'bin', 'sdkmanager') if sdk != None else 'sdkmanager'
+        sdkman_output = run_command(
+            [application, "--list", f"--channel={str(self)}"], catch_stdout=True
+        )
+
         packages = {'installed': {}, 'available': {}}
         for line in [package for package in sdkman_output if package.count('|') == 3]:
             name, version, _, location = (l.strip() for l in line.split('|'))
